@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+.node {
+  stroke: #fff;
+  /*stroke-width: 1.5px;*/
+}
+.node_click{
+  stroke: #000;
+}
+
+.node_traget{
+  stroke: #f00;
+}
+
+.link {
+  stroke: #999;
+  stroke-opacity: .6;
+}
+
+.line_hight{
+  stroke: #00ffff;
+  stroke-opacity: .6;
+}
+
+.line_click{
+  stroke-opacity: 1;
+  stroke: #00f;
+}
+
+#graph{
+  width: 1000px;
+  height: 800px;
+  background-color:#F0F0F0; 
+  float: left;
+  margin-right: 10px;
+}
+
+#detial{
+  height: 1000px;
+}
+
+text {
+    font: 10px sans-serif;
+    pointer-events: none;
+    text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+}
+
+svg {
+  /*background: #f00;*/
+}
+
+
+
+</style>
+<body>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+
+<div>
+  <div id="graph"></div>
+  <div id="detial">
+    <div id = "source_target">
+      <label id="source">null</label>
+      <ul></ul>
+    </div>
+    <div id = "element">
+      <label>Intersect</label>
+      <ul></ul>
+    </div>
+  </div>
+<div>
+<script>
+
+var width = 1000,
+    height = 800;
+var state = 1;
+// $.getJSON( "nodesName.json", function( dataNameDict ) {
+$.getJSON( "nodesName3.json", function( dataNameDict ) {
+  var arrayIntersect = function(a, b)
+  {
+      return $.grep(a, function(i)
+      {
+          return $.inArray(i, b) > -1;
+      });
+  };
+
+
+  var color = d3.scale.category20();
+
+  var force = d3.layout.force()
+      .charge(-120)
+      .linkDistance(400)
+      .size([width, height]);
+
+  var svg = d3.select("#graph").append("svg")
+      .attr("width", width)
+      .attr("height", height);
+
+  // var drawGraph = d3.json("nodes.json", function(error, graph) {
+  var drawGraph = d3.json("nodes3.json", function(error, graph) {
+    force
+        .nodes(graph.nodes)
+        .links(graph.links)
+        .start();
+
+    var link = svg.selectAll(".link")
+        .data(graph.links)
+      .enter().append("line")
+        .attr("class", "link")
+        .style("stroke-width", function(d) { return d.value; })
+        .on("click", line_click);
+
+    var gnodes = svg.selectAll('g.gnode')
+       .data(graph.nodes)
+       .enter()
+       .append('g')
+       .classed('gnode', true);
+      
+    var node = gnodes.append("circle")
+        .attr("class", "node")
+        .attr("r", 5)
+        .style("fill", function(d) { return color(d.group); })
+        .on("click", node_click)
+        .call(force.drag);
+
+    var labels = gnodes.append("text")
+        .attr("x", 8)
+        .attr("y", ".31em")
+        .text(function(d) { 
+          return d.name +" name:" + dataNameDict[d.name]; 
+        });
+      
+    force.on("tick", function() {
+      link.attr("x1", function(d) { return d.source.x; })
+          .attr("y1", function(d) { return d.source.y; })
+          .attr("x2", function(d) { return d.target.x; })
+          .attr("y2", function(d) { return d.target.y; });
+
+      gnodes.attr("transform", function(d) { 
+          return 'translate(' + [d.x, d.y] + ')'; 
+      });    
+    });
+
+    function node_click(d, i) {
+      var ts = d3.select(this);
+      switch(state){
+        case 1:
+          ts.attr("r", 10);
+          ts.classed("node", false);
+          ts.classed("node_click", true);
+          state = 2;
+          d3.selectAll("line").classed("line_hight", function(dl){
+            if(dl.source.name == d.name || dl.target.name == d.name){
+              $("#source").text("Source : "+d.name + " Title : " + dataNameDict[d.name]);
+              return true;
+            }
+          });
+          break;
+        case 2:
+          if(ts.classed("node_click")){
+            ts.attr("r", 5);
+            ts.classed("node_click", false);
+            ts.classed("node", true);
+            state = 1;
+            d3.selectAll("line").classed("line_hight", function(dl){
+              if(dl.source.name == d.name|| dl.target.name == d.name){
+                $("#source").text("null");
+                return false;
+              }
+            });
+          }
+          break;
+        case 3:
+          break;
+        default:
+          break;
+      }
+    }
+
+    function line_click(dl, il){
+      var ts = d3.select(this);
+      switch(state){
+        case 1:
+          //no happen
+          break;
+        case 2:
+          if(ts.classed("line_hight")){
+            ts.classed("line_hight", false);
+            ts.classed("line_click", true);
+            var target;
+            d3.selectAll(".node").classed("node_traget", function(d){
+              if(d.name == dl.source.name || d.name ==dl.target.name){
+                if(d.name == dl.source.name){
+                  target = dl.source.name;
+                }else{
+                  target = dl.target.name;
+                }
+                return true;
+              }
+            });
+            $("#source_target ul").append("<li Tag="+target+"> Target : "+target+" Title : "+dataNameDict[target]+"</li>");
+            d3.selectAll(".node_traget").classed("node", false);
+            var items = [];
+            $.each(dl["cocitepaper"], function(i, item){
+              items.push('<li Tag='+item+'>'+item+' Title : '+dataNameDict[item]+'</li>');
+            });
+            $("#element ul").append(items.join(''));
+            state = 3;
+          }
+          break;
+        case 3:
+          if(ts.classed("line_hight")){
+            ts.classed("line_hight", false);
+            ts.classed("line_click", true);
+            var target;
+            d3.selectAll(".node").classed("node_traget", function(d){
+              if(d.name == dl.source.name || d.name ==dl.target.name){
+                if(d.name == dl.source.name){
+                  target = dl.source.name;
+                }else{
+                  target = dl.target.name;
+                }
+                return true;
+              }
+            });
+            $("#source_target ul").append("<li Tag="+target+"> Target : "+target+" Title : "+dataNameDict[target]+"</li>");
+            d3.selectAll(".node_traget").classed("node", false);
+            var items = [];
+            $.each($("#element li").toArray(), function(){
+              items.push($(this).attr("tag"));
+            });
+            items = arrayIntersect(items, dl["cocitepaper"]);
+            $("#element ul li").remove()
+            var arr = [];
+            $.each(items, function(i, item){
+              arr.push('<li Tag='+item+'>'+item+' Title : '+dataNameDict[item]+'</li>');
+            });
+            $("#element ul").append(arr.join(''));
+          }else if(ts.classed("line_click")){
+            ts.classed("line_hight", true);
+            ts.classed("line_click", false);
+            var target;
+            d3.selectAll(".node_traget").classed("node", function(d){
+              if(d.name == dl.source.name || d.name ==dl.target.name){
+                if(d.name == dl.source.name){
+                  target = dl.source.name;
+                }else{
+                  target = dl.target.name;
+                }
+                return true;
+              }
+            });
+            $("li[Tag="+target+"]").remove();
+            d3.selectAll(".node").classed("node_traget", false);
+            
+            $("#element ul li").remove();
+            if(d3.selectAll(".line_click")[0].length>0){
+              var selected = d3.selectAll(".line_click");
+              var items = [];
+              selected.each(function(dll, ill){
+                if(items.length == 0){
+                  items = dll['cocitepaper'];
+                }else{
+                  items = arrayIntersect(items, dll["cocitepaper"]);
+                }
+              });
+              var arr = [];
+              $.each(items, function(i, item){
+                arr.push('<li Tag='+item+'>'+item+' Title : '+dataNameDict[item]+'</li>');
+              });
+              $("#element ul").append(arr.join(''));
+              break;
+            }else{
+              state = 2
+            }
+          }
+          break;
+        default:
+          break;
+      }
+    }
+  });
+});
+</script>
